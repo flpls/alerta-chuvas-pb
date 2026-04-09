@@ -1,0 +1,23 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "Static Dashboard (HTTP server)",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "8080", "--directory", "."],
+      "port": 8080
+    },
+    {
+      "name": "Boletim Pipeline (dry-run)",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["main.py", "--dry-run"],
+      "port": null
+    },
+    {
+      "name": "Boletim Pipeline (full render)",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["main.py"],
+      "port": null
+    }
+  ]
+}
