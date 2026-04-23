@@ -56,23 +56,6 @@ RESERV_COLORS = {
 }
 
 # ---------------------------------------------------------------------------
-# INMET
-# ---------------------------------------------------------------------------
-INMET_BASE_URL = "https://apitempo.inmet.gov.br"
-INMET_TIMEOUT = 10
-INMET_RETRIES = 3
-
-# Keyed by station code → {municipio, ibge_code, lat, lon}
-INMET_STATIONS = {
-    "A322": {"municipio": "Campina Grande",  "ibge_code": 2504009, "lat": -7.2306,  "lon": -35.8811},
-    "A323": {"municipio": "João Pessoa",     "ibge_code": 2507507, "lat": -7.1153,  "lon": -34.8641},
-    "A349": {"municipio": "Patos",           "ibge_code": 2510808, "lat": -7.0194,  "lon": -37.2806},
-    "A350": {"municipio": "Sousa",           "ibge_code": 2516201, "lat": -6.7597,  "lon": -38.2283},
-    "A348": {"municipio": "Cajazeiras",      "ibge_code": 2503209, "lat": -6.8919,  "lon": -38.5597},
-    "A339": {"municipio": "Monteiro",        "ibge_code": 2509701, "lat": -7.8886,  "lon": -37.1200},
-}
-
-# ---------------------------------------------------------------------------
 # CEMADEN
 # ---------------------------------------------------------------------------
 CEMADEN_CSV_URL = "https://www.cemaden.gov.br/dados-pluviometricos-em-formato-csv/"
@@ -103,7 +86,7 @@ CEMADEN_IBGE = {
     "catole do rocha":   2504306,
     "sao bento":         2513802,
     "mamanguape":        2508703,
-    "cabedelo":          2503209,  # will be overridden by ibge lookup if wrong
+    "cabedelo":          2503102,
     "itapororoca":       2507002,
     "alagoa grande":     2500304,
     "cuite":             2505238,

@@ -1,12 +1,10 @@
 """
 Rainfall processing — turns raw collector records into rendering-ready metrics.
 
-All inputs are lists of dicts with at minimum:
-    {ibge_code, municipio, chuva_mm, fonte, data, lat, lon}
-
-CEMADEN is the primary source when both cover the same municipality.
-When they diverge, we keep the higher value as the conservative estimate
-(better to flag a potential alert than to miss one).
+Primary source: CEMADEN (dense municipal network across PB).
+The merge_sources function accepts an optional list of supplementary records
+(e.g. from a future ANA/HidroWeb integration) and overlays them on top of
+CEMADEN, keeping the higher value per municipality as a conservative estimate.
 """
 
 import logging
@@ -27,45 +25,42 @@ log = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 def merge_sources(
-    inmet: list[dict],
     cemaden: list[dict],
+    supplementary: list[dict] | None = None,
 ) -> list[dict]:
     """
-    Combine INMET and CEMADEN records into one record per municipality.
+    Build a single record per municipality from CEMADEN plus any supplementary
+    source (e.g. ANA/HidroWeb in a future phase).
 
-    Strategy per municipality:
-      - Only one source present → use it.
-      - Both present → prefer CEMADEN, but keep the higher chuva_mm value.
-        (CEMADEN has denser coverage; INMET is a single point per station.)
+    Strategy when a municipality appears in both:
+      - Keep the higher chuva_mm value (conservative for alerts).
+      - Mark fonte as 'CEMADEN+<other>' for transparency.
+
+    With no supplementary source this is a simple deduplication pass that
+    also resolves any duplicate IBGE codes within the CEMADEN data itself
+    (rare, but possible if two station names map to the same code).
     """
     by_ibge: dict[int, dict] = {}
 
-    # Load INMET first (lower priority)
-    for r in inmet:
-        by_ibge[r["ibge_code"]] = dict(r)
-
-    # Overlay CEMADEN (higher priority)
     for r in cemaden:
         code = r["ibge_code"]
+        if code not in by_ibge or r["chuva_mm"] > by_ibge[code]["chuva_mm"]:
+            by_ibge[code] = dict(r)
+
+    for r in (supplementary or []):
+        code = r["ibge_code"]
         if code in by_ibge:
-            existing_mm = by_ibge[code]["chuva_mm"]
-            # Keep whichever is higher — conservative approach for alerts
-            if r["chuva_mm"] >= existing_mm:
-                by_ibge[code] = dict(r)
-            else:
-                # CEMADEN wins on source attribution but INMET had more rain —
-                # record both the higher value and the CEMADEN provenance
+            if r["chuva_mm"] > by_ibge[code]["chuva_mm"]:
                 merged = dict(r)
-                merged["chuva_mm"] = existing_mm
-                merged["fonte"] = "INMET+CEMADEN"
+                merged["fonte"] = f"CEMADEN+{r['fonte']}"
                 by_ibge[code] = merged
         else:
             by_ibge[code] = dict(r)
 
     result = list(by_ibge.values())
     log.debug(
-        "merge_sources: INMET=%d, CEMADEN=%d → merged=%d municipalities",
-        len(inmet), len(cemaden), len(result),
+        "merge_sources: CEMADEN=%d, supplementary=%d → %d municipalities",
+        len(cemaden), len(supplementary or []), len(result),
     )
     return result
 
