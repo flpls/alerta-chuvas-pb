@@ -1,0 +1,82 @@
+name: Boletim Diário
+
+on:
+  schedule:
+    # 05:00 BRT = 08:00 UTC (Paraíba is UTC-3, no DST)
+    - cron: '0 8 * * *'
+  workflow_dispatch:
+    inputs:
+      date_override:
+        description: 'Run date (YYYY-MM-DD). Leave blank for today.'
+        required: false
+        default: ''
+
+env:
+  MPLBACKEND: Agg
+  PYTHONUNBUFFERED: "1"
+
+jobs:
+  gerar-boletim:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Install system deps BEFORE pip so GDAL headers are present
+      # when geopandas/fiona compile their extensions
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            ffmpeg \
+            libgdal-dev \
+            gdal-bin \
+            libspatialindex-dev
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Cache pip packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: pip-${{ runner.os }}-${{ hashFiles('requirements.txt') }}
+          restore-keys: |
+            pip-${{ runner.os }}-
+
+      - name: Install GDAL Python binding (must match system GDAL)
+        run: |
+          GDAL_VER=$(gdal-config --version)
+          echo "System GDAL: $GDAL_VER"
+          pip install --quiet "GDAL==${GDAL_VER}"
+
+      - name: Install Python dependencies
+        run: pip install --quiet -r requirements.txt
+
+      - name: Verify ffmpeg
+        run: ffmpeg -version | head -1
+
+      - name: Run pipeline
+        env:
+          BOLETIM_DATE: ${{ github.event.inputs.date_override }}
+        run: python main.py
+
+      - name: Upload boletim MP4
+        uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: boletim-${{ github.run_id }}
+          path: output/*.mp4
+          retention-days: 7
+
+      - name: Upload logs on failure
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: logs-${{ github.run_id }}
+          path: logs/
+          retention-days: 3
